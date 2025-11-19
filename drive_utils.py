@@ -2,6 +2,7 @@ import os
 import logging
 import base64
 import json
+import re
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import google.auth
@@ -26,13 +27,41 @@ def get_drive_service():
             creds = service_account.Credentials.from_service_account_info(
                 service_account_info, scopes=SCOPES
             )
-            return build('drive', 'v3', credentials=creds)
+            return build('drive', 'v3', credentials=creds, cache_discovery=False)
         except Exception as e:
             logger.error(f"Failed to load credentials from GOOGLE_SERVICE_ACCOUNT_JSON: {e}")
             raise
 
     except Exception as e:
         logger.error(f"Failed to authenticate: {e}")
+        raise
+
+def sanitize_name(name):
+    """
+    Sanitizes the folder name by removing characters invalid in Windows filenames
+    and stripping whitespace.
+    """
+    # Remove invalid characters: < > : " / \ | ? *
+    name = re.sub(r'[<>:"/\\|?*]', '', name)
+    # Remove control characters
+    name = re.sub(r'[\x00-\x1f\x7f]', '', name)
+    return name.strip()
+
+def folder_exists(service, name, parent_id):
+    """Checks if a folder with the given name exists in the parent folder."""
+    query = f"name = '{name}' and '{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    try:
+        results = service.files().list(
+            q=query,
+            spaces='drive',
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        files = results.get('files', [])
+        return len(files) > 0
+    except Exception as e:
+        logger.error(f"Failed to check if folder '{name}' exists: {e}")
         raise
 
 def create_folder(service, name, parent_id=None):
@@ -70,8 +99,14 @@ def create_org_structure(org_name, parent_drive_id):
     service = get_drive_service()
 
     # 1. Create top-level Organization folder
-    logger.info(f"Creating top-level folder for organization: {org_name}")
-    org_folder = create_folder(service, org_name, parent_drive_id)
+    clean_org_name = sanitize_name(org_name)
+    
+    if folder_exists(service, clean_org_name, parent_drive_id):
+        logger.warning(f"Organization folder '{clean_org_name}' already exists.")
+        raise ValueError(f"Organization folder '{clean_org_name}' already exists.")
+
+    logger.info(f"Creating top-level folder for organization: {clean_org_name} (original: {org_name})")
+    org_folder = create_folder(service, clean_org_name, parent_drive_id)
     org_folder_id = org_folder.get('id')
     org_folder_url = org_folder.get('webViewLink')
 
