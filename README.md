@@ -32,8 +32,7 @@ pip install -r requirements.txt
 Set the following environment variables:
 
 -   `GOOGLE_SHARED_DRIVE_ID`: (Required) The ID of the Google Shared Drive.
--   `GOOGLE_APPLICATION_CREDENTIALS`: (Required for local/AWS if not using base64) Path to your Service Account JSON key file.
--   `GOOGLE_SERVICE_ACCOUNT_JSON`: (Optional) Base64 encoded content of the Service Account JSON key file. This takes precedence over `GOOGLE_APPLICATION_CREDENTIALS` if set.
+-   `GOOGLE_SERVICE_ACCOUNT_JSON`: (Required) Base64 encoded content of the Service Account JSON key file.
     -   Generate the base64 string: `base64 -i path/to/key.json` (Linux/macOS) or using PowerShell on Windows.
 
 ## Usage
@@ -69,14 +68,6 @@ Set the following environment variables:
     docker run -p 8080:8080 \
       -e GOOGLE_SHARED_DRIVE_ID="your_drive_id" \
       -e GOOGLE_SERVICE_ACCOUNT_JSON="base64_encoded_json" \
-      drive-folder-creator
-    ```
-    *Note: You can also mount the credentials file instead of using the base64 variable:*
-    ```bash
-    docker run -p 8080:8080 \
-      -e GOOGLE_SHARED_DRIVE_ID="your_drive_id" \
-      -e GOOGLE_APPLICATION_CREDENTIALS="/app/key.json" \
-      -v /path/to/key.json:/app/key.json \
       drive-folder-creator
     ```
 

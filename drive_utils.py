@@ -17,22 +17,20 @@ def get_drive_service():
     try:
         # Check for base64 encoded service account JSON
         service_account_json_b64 = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
-        if service_account_json_b64:
-            try:
-                decoded_json = base64.b64decode(service_account_json_b64)
-                service_account_info = json.loads(decoded_json)
-                creds = service_account.Credentials.from_service_account_info(
-                    service_account_info, scopes=SCOPES
-                )
-                return build('drive', 'v3', credentials=creds)
-            except Exception as e:
-                logger.error(f"Failed to load credentials from GOOGLE_SERVICE_ACCOUNT_JSON: {e}")
-                raise
+        if not service_account_json_b64:
+            raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not set")
 
-        # Attempt to use Application Default Credentials (ADC)
-        creds, project = google.auth.default(scopes=SCOPES)
-        service = build('drive', 'v3', credentials=creds)
-        return service
+        try:
+            decoded_json = base64.b64decode(service_account_json_b64)
+            service_account_info = json.loads(decoded_json)
+            creds = service_account.Credentials.from_service_account_info(
+                service_account_info, scopes=SCOPES
+            )
+            return build('drive', 'v3', credentials=creds)
+        except Exception as e:
+            logger.error(f"Failed to load credentials from GOOGLE_SERVICE_ACCOUNT_JSON: {e}")
+            raise
+
     except Exception as e:
         logger.error(f"Failed to authenticate: {e}")
         raise
